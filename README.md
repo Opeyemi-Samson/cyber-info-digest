@@ -14,7 +14,7 @@ RSS Feeds → Deduplicate → Full-text fetch → AI (categorize/severity/summar
 → HTML email via Gmail
 
 ## Setup
-1. `pip install -r requirements.txt`  *(we'll make this below)*
+1. `pip install -r requirements.txt`
 2. Copy `.env.example` to `.env` and fill in your keys
 3. `python main.py`
 
