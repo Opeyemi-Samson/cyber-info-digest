@@ -1,0 +1,7 @@
+# Secrets
+.env
+
+# Data files
+seen_articles.json
+__pycache__/
+*.pyc
