@@ -43,6 +43,19 @@ SEEN_FILE = Path("seen_articles.json")
 MAX_ARTICLES = 15
 DAYS_TO_LOOK_BACK = 7
 
+# --- Digest preferences (edit these anytime) ---
+MIN_SEVERITY = 2          # only email articles with severity >= this (1-5)
+MIN_SEVERITY_BADGE = 4    # articles >= this get a 🔴 CRITICAL-style badge
+
+SEVERITY_EMOJI = {
+    5: "🚨 CRITICAL",
+    4: "🔴 HIGH",
+    3: "🟠 MEDIUM",
+    2: "🟡 LOW",
+    1: "⚪ TRIVIAL",
+}
+
+
 # ============================================================
 # 2. AI SETUP
 # ============================================================
@@ -181,20 +194,17 @@ Articles:
 # 6. BUILD + SEND EMAIL
 # ============================================================
 
-def severity_flag(n):
-    flags = {
-        5: "CRITICAL",
-        4: "High",
-        3: "Medium",
-        2: "Low",
-        1: "Trivial",
-    }
-    return flags.get(n, "Medium")
-
 
 def build_email(weekly_overview, analyzed):
+    # 1. Filter by minimum severity BEFORE doing anything else
+    filtered = [a for a in analyzed if a["severity"] >= MIN_SEVERITY]
+
+    if not filtered:
+        print(f"No articles met severity >= {MIN_SEVERITY}. Skipping email.")
+        return None
+
     groups = {}
-    for a in analyzed:
+    for a in filtered:
         groups.setdefault(a["category"], []).append(a)
 
     html = f"""
@@ -207,9 +217,10 @@ def build_email(weekly_overview, analyzed):
     for category, stories in sorted(groups.items()):
         html += f"<h3>{category}</h3>"
         for s in sorted(stories, key=lambda x: -x["severity"]):
+            badge = SEVERITY_EMOJI.get(s["severity"], "🟠 MEDIUM")
             html += f"""
             <p><b>{s['title']}</b><br>
-            <small>Severity: {severity_flag(s['severity'])}</small><br>
+            <small>Severity: {badge}</small><br>
             {s['summary']}<br>
             <a href="{s['link']}">Read the original</a></p>
             """
@@ -217,6 +228,7 @@ def build_email(weekly_overview, analyzed):
     html += "<hr><p style='color:gray;font-size:12px;'>Built with Python</p>"
     html += "</body></html>"
     return html
+
 
 
 def send_email(html):
@@ -258,8 +270,14 @@ def main():
         "cybersecurity themes. Friendly tone, no jargon:\n" + titles
     )
 
-    print("Sending email...")
-    send_email(build_email(overview, analyzed))
+    print("Building email...")
+    html = build_email(overview, analyzed)
+    if html is None:
+        print("Nothing severe enough to email. Marking articles as seen anyway.")
+    else:
+        print("Sending email...")
+        send_email(html)
+
 
     seen = load_seen()
     for a in analyzed:
